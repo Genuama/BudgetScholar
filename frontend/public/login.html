@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Budget Scholar</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Budget Scholar Login</h1>
+
+    <form id="loginForm">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Enter your username" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password" required>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="Enter your email" required>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <p id="message"></p>
+
+    <footer>
+      <p>Don't have an account? <a href="/register.html">Register here</a></p>
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const email = document.getElementById("email").value;
+
+      try {
+        const response = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password, email })
+        });
+
+        const text = await response.text();
+        message.innerText = text;
+
+        if (text.toLowerCase().includes("successful")) {
+          window.location.href = "/budget-dashboard";
+        }
+
+      } catch (err) {
+        console.error(err);
+        message.innerText = "An error occurred. Please try again.";
+      }
+    });
+  </script>
+</body>
+</html>

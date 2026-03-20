@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BudgetScholar -Add transaction</title>
+   <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <h1>Add transaction</h1>
+  <form id = "transaction-form">
+    <input type="hidden" id="user_id" value="1">
+    Type:
+    <select id="type">
+      <option value="income">Income</option>
+      <option value="expenses">Expenses</option>
+    </select>
+  </label><br>
+
+  <label>
+    Category:
+    <select id="category">
+      <option value="">Select category</option>
+    </select>
+  </label><br>
+
+  <label>Amount: <input type="number" id="amount" value="100" required></label><br>
+
+  <button type="submit">Add Transaction</button>
+</form>
+ <script>
+    document.getElementById("transaction-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+       const data = {
+        user_id: document.getElementById("user_id").value,
+        type: document.getElementById("type").value,
+        category_id: document.getElementById("category").value,
+        amount: document.getElementById("amount").value
+      };
+
+      const response = await fetch("/add-transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const message = await response.text();
+      alert(message);
+    });
+  </script>
+  <script>
+  async function loadCategories(type) {
+    const res = await fetch(`/categories/${type}`);
+    const categories = await res.json();
+
+    const catDropdown = document.getElementById("category");
+    catDropdown.innerHTML = "<option value=''>Select category</option>";
+
+    categories.forEach(cat => {
+      const option = document.createElement("option");
+      option.value = cat.id;
+      option.textContent = cat.name;
+      catDropdown.appendChild(option);
+    });
+  }
+
+  // Load categories when type changes
+  document.getElementById("type").addEventListener("change", (e) => {
+    loadCategories(e.target.value);
+  });
+
+  // Load initial category list on page load
+  loadCategories(document.getElementById("type").value);
+</script>
+</body>
+</html>
+
+<!-- 
+//   <script>
+//     document.getElementById("insert-btn").addEventListener("click", () => {
+//       fetch("http://localhost:3000/test")
+//         .then(response => response.text())
+//         .then(message => alert(message))
+//         .catch(err => alert("Error: " + err));
+//     });
+//   </script>
+// </body>
+// </html> -->

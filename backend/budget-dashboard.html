@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Budget Dashboard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<h1>Budget Dashboard</h1>
+
+<table border="1">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Budget</th>
+      <th>Spent</th>
+      <th>Remaining</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody id="budget-table"></tbody>
+</table>
+
+<script>
+async function loadBudget() {
+  const res = await fetch("/budget-summary/1");
+  const data = await res.json();
+
+  const table = document.getElementById("budget-table");
+  table.innerHTML = "";
+
+  data.forEach(row => {
+    const remaining = row.budget_amount - row.spent;
+    const status = remaining >= 0 ? "Within Budget" : "Over Budget";
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${row.category}</td>
+      <td>$${row.budget_amount}</td>
+      <td>$${row.spent}</td>
+      <td>$${remaining}</td>
+      <td>${status}</td>
+    `;
+    table.appendChild(tr);
+  });
+}
+
+loadBudget();
+</script>
+
+</body>
+</html>

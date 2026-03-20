@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Budget Scholar</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Create an Account</h1>
+
+    <form id="registerForm">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" placeholder="Choose a username" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Choose a password" required>
+
+      <button type="submit">Register</button>
+    </form>
+
+    <p id="message" style="color: red; text-align: center; margin-top: 10px;"></p>
+
+    <footer>
+      <p>Already have an account? <a href="/login">Login here</a></p>
+    </footer>
+  </div>
+
+ <script>
+  const form = document.getElementById("registerForm");
+  const messageEl = document.getElementById("message");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    if (!username || !password) {
+      messageEl.innerText = "Please fill in all fields.";
+      return;
+    }
+
+    try {
+      const response = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }) 
+      });
+
+      const text = await response.text();
+      messageEl.innerText = text;
+
+      if (response.ok && text.toLowerCase().includes("registered")) {
+        window.location.href = "/login";
+      }
+
+    } catch (err) {
+      console.error(err);
+      messageEl.innerText = "An error occurred. Please try again.";
+    }
+  });
+</script>
