@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const bcrypt = require('bcrypt');
 const express = require("express");
 const mysql = require("mysql2");
@@ -6,45 +8,60 @@ const path = require("path");
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "../frontend/public")));
 
+// CORS — only needed in local dev (in production the backend serves the frontend directly)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    res.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    next();
+  });
+}
 
 const session = require("express-session");
 
 app.use(
   session({
-    secret: "superSecretKey123", 
+    secret: process.env.SESSION_SECRET || "superSecretKey123",
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
   })
 );
 
-
-
-
-// connect to mariadb
+// connect to database
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "budget_user",
-  password: "mypassword",
-  database: "budget_scholar"
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "budget_user",
+  password: process.env.DB_PASSWORD || "mypassword",
+  database: process.env.DB_NAME || "budget_scholar",
+  port: process.env.DB_PORT || 3306
 });
 
-// connection check
 db.connect(err => {
   if (err) {
     console.error("Database connection failed:", err);
     return;
   }
-  console.log("connected to mariadb");
+  console.log("Connected to database");
+});
+
+// GET current session user
+app.get("/me", (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: "Not logged in" });
+  res.json({ userId: req.session.userId, username: req.session.username });
 });
 
 // GET categories
 app.get("/categories/:type", (req, res) => {
   const { type } = req.params;
-
   const sql = "SELECT id, name FROM categories WHERE type = ?";
-
   db.query(sql, [type], (err, rows) => {
     if (err) {
       console.error("Error fetching categories:", err);
@@ -54,37 +71,74 @@ app.get("/categories/:type", (req, res) => {
   });
 });
 
-// Add Transaction
-app.post("/add-transaction", (req, res) => {
-  const { user_id, type, category_id, amount } = req.body;
-
-  if (!user_id || !type || !category_id || !amount) {
-    return res.status(400).send("Missing required fields");
-  }
-
+// GET transactions for a user
+app.get("/transactions/:user_id", (req, res) => {
+  const { user_id } = req.params;
   const sql = `
-    INSERT INTO transactions (user_id, type, category_id, amount, date)
-    VALUES (?, ?, ?, ?, CURDATE());
+    SELECT t.id, t.type, t.amount, t.date, c.name AS category
+    FROM transactions t
+    JOIN categories c ON t.category_id = c.id
+    WHERE t.user_id = ?
+    ORDER BY t.date DESC
+    LIMIT 20
   `;
-
-  db.query(sql, [user_id, type, category_id, amount], (err, result) => {
+  db.query(sql, [user_id], (err, rows) => {
     if (err) {
-      console.error("Error running query:", err);
-      return res.status(500).send("Database insert failed");
+      console.error("Error fetching transactions:", err);
+      return res.status(500).json({ error: "Database error" });
     }
-    res.send("Transaction added successfully!");
+    res.json(rows);
   });
 });
 
-//Budget Summary
+// GET balance summary for a user
+app.get("/balance/:user_id", (req, res) => {
+  const { user_id } = req.params;
+  const sql = `
+    SELECT
+      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
+      COALESCE(SUM(CASE WHEN type = 'expenses' THEN amount ELSE 0 END), 0) AS total_expenses
+    FROM transactions
+    WHERE user_id = ?
+  `;
+  db.query(sql, [user_id], (err, rows) => {
+    if (err) {
+      console.error("Error fetching balance:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(rows[0]);
+  });
+});
+
+// Add Transaction
+app.post("/add-transaction", (req, res) => {
+  const { user_id, type, category_id, amount } = req.body;
+  if (!user_id || !type || !category_id || !amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const sql = `
+    INSERT INTO transactions (user_id, type, category_id, amount, date)
+    VALUES (?, ?, ?, ?, CURDATE())
+  `;
+  db.query(sql, [user_id, type, category_id, amount], (err) => {
+    if (err) {
+      console.error("Error adding transaction:", err);
+      return res.status(500).json({ error: "Database insert failed" });
+    }
+    res.json({ message: "Transaction added successfully!" });
+  });
+});
+
+// GET budget summary
 app.get("/budget-summary/:user_id", (req, res) => {
   const user_id = req.params.user_id;
-
   const sql = `
-    SELECT 
+    SELECT
       b.id AS budget_id,
+      b.name AS budget_name,
       c.name AS category,
       b.amount AS budget_amount,
+      b.period,
       (SELECT COALESCE(SUM(t.amount), 0)
        FROM transactions t
        WHERE t.category_id = b.category_id
@@ -94,11 +148,10 @@ app.get("/budget-summary/:user_id", (req, res) => {
     JOIN categories c ON b.category_id = c.id
     WHERE b.user_id = ?
   `;
-
   db.query(sql, [user_id], (err, rows) => {
     if (err) {
-      console.error("Error:", err);
-      return res.status(500).send("Database error");
+      console.error("Error fetching budget summary:", err);
+      return res.status(500).json({ error: "Database error" });
     }
     res.json(rows);
   });
@@ -106,100 +159,75 @@ app.get("/budget-summary/:user_id", (req, res) => {
 
 // Add Budget
 app.post("/add-budget", (req, res) => {
-  const { user_id, category_id, amount, period } = req.body;
-
+  const { user_id, category_id, amount, period, name } = req.body;
   if (!user_id || !category_id || !amount) {
-    return res.status(400).send("Missing required fields");
+    return res.status(400).json({ error: "Missing required fields" });
   }
-
   const sql = `
-    INSERT INTO budgets (user_id, category_id, amount, period)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO budgets (user_id, category_id, amount, period, name)
+    VALUES (?, ?, ?, ?, ?)
   `;
-
-  db.query(sql, [user_id, category_id, amount, period || 'monthly'], (err) => {
+  db.query(sql, [user_id, category_id, amount, period || 'monthly', name || ''], (err) => {
     if (err) {
       console.error("Error adding budget:", err);
-      return res.status(500).send("Database insert failed");
+      return res.status(500).json({ error: "Database insert failed" });
     }
-    res.send("Budget added successfully!");
+    res.json({ message: "Budget added successfully!" });
   });
 });
 
-//registration route
-app.post("/register", async(req, res) => {
-  const{username, password} = req.body;
-
-  if (!username || !password){
-    return res.status(400).send("Missing username or password");
+// Register
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: "Missing username or password" });
   }
   const hashed = await bcrypt.hash(password, 10);
-
-  const sql = "INSERT into users (username, password) VALUES (?,?)";
-
-  db.query(sql, [username, hashed], (err, result)=>{
-    if (err){
+  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+  db.query(sql, [username, hashed], (err) => {
+    if (err) {
       console.error(err);
-      return res.status(500).send("Registration failed");
+      return res.status(500).json({ error: "Registration failed" });
     }
-    res.send("User registered");
+    res.json({ message: "User registered" });
   });
 });
 
-//login route
+// Login
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-
   const sql = "SELECT * FROM users WHERE username = ?";
-
   db.query(sql, [username], async (err, rows) => {
-    if (err) return res.status(500).send("DB error");
-
-    if (rows.length === 0) return res.status(400).send("User not found");
+    if (err) return res.status(500).json({ error: "DB error" });
+    if (rows.length === 0) return res.status(400).json({ error: "User not found" });
 
     const user = rows[0];
-
     const match = await bcrypt.compare(password, user.password);
-
-    if (!match) return res.status(401).send("Wrong password");
+    if (!match) return res.status(401).json({ error: "Wrong password" });
 
     req.session.userId = user.id;
+    req.session.username = user.username;
 
-    res.send("Login successful");
+    res.json({ message: "Login successful", userId: user.id, username: user.username });
   });
 });
 
-app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/public/login.html"));
+// Logout
+app.post("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.json({ message: "Logged out" });
+  });
 });
 
-
-//protect routes
-function requireLogin(req, res, next) {
-  if (!req.session.userId) return res.status(403).send("Not logged in");
-  next();
+// Serve React frontend in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/react-client/build')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/react-client/build', 'index.html'));
+  });
 }
 
-app.get("/budget-dashboard", requireLogin, (req, res) => {
-  res.sendFile(__dirname + "../backend/budget-dashboard.html");
-});
-
-
-
-// Budget Dashboard Page
-app.get("/budget-dashboard", (req, res) => {
-  res.sendFile(__dirname + "../backend/budget-dashboard.html");
-});
-
-// HOME PAGE (MUST BE LAST)
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname , '../frontend/public/index.html'));
-});
-
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
-});
-
-app.listen(3001, () => {
-  console.log("Server running on http://localhost:3001");
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
