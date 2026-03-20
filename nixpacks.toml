@@ -1,0 +1,13 @@
+[phases.install]
+cmds = [
+  "cd backend && npm install",
+  "cd frontend/react-client && npm install"
+]
+
+[phases.build]
+cmds = [
+  "cd frontend/react-client && npm run build"
+]
+
+[start]
+cmd = "node backend/server.js"
