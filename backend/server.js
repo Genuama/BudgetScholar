@@ -9,6 +9,13 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Render (and most PaaS platforms) terminate HTTPS at the edge and forward
+// plain HTTP internally. Without this, req.secure is always false, so the
+// session cookie's `secure: true` flag silently prevents it from being set.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // CORS — only needed in local dev (in production the backend serves the frontend directly)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
