@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import BalanceCard from "../components/cards/BalanceCard";
 import BudgetProgressCard from "../components/cards/BudgetProgessCard";
+import SpendingByCategoryChart from "../components/charts/SpendingByCategoryChart";
 
 async function fetchJson(url) {
   const res = await fetch(url, { credentials: "include" });
@@ -58,6 +59,8 @@ export default function Dashboard({ userId }) {
         income={balance.total_income}
         expenses={balance.total_expenses}
       />
+
+      <SpendingByCategoryChart transactions={transactions} />
 
       <h3 className="section-title">Budget Progress</h3>
 

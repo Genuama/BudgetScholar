@@ -463,6 +463,18 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.06);
 }
 
+/* ── Charts ── */
+.chart-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.chart-card .section-title {
+  margin-top: 0;
+}
+
 .budget-card-header {
   display: flex;
   justify-content: space-between;
