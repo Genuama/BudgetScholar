@@ -36,13 +36,23 @@ app.use(
 );
 
 // connect to database
-const db = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "budget_user",
-  password: process.env.DB_PASSWORD || "mypassword",
-  database: process.env.DB_NAME || "budget_scholar",
-  port: process.env.DB_PORT || 3306
-});
+// In production, set DATABASE_URL to a single mysql://user:pass@host:port/dbname
+// connection string (e.g. from TiDB Cloud). Set DB_SSL=true for hosts that
+// require TLS, like TiDB Cloud.
+const db = process.env.DATABASE_URL
+  ? mysql.createConnection({
+      uri: process.env.DATABASE_URL,
+      ...(process.env.DB_SSL === "true"
+        ? { ssl: { minVersion: "TLSv1.2", rejectUnauthorized: true } }
+        : {})
+    })
+  : mysql.createConnection({
+      host: process.env.DB_HOST || "localhost",
+      user: process.env.DB_USER || "budget_user",
+      password: process.env.DB_PASSWORD || "mypassword",
+      database: process.env.DB_NAME || "budget_scholar",
+      port: process.env.DB_PORT || 3306
+    });
 
 db.connect(err => {
   if (err) {
@@ -55,7 +65,7 @@ db.connect(err => {
 // GET current session user
 app.get("/me", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Not logged in" });
-  res.json({ userId: req.session.userId, username: req.session.username });
+  res.json({ userId: req.session.userId, username: req.session.username, name: req.session.name });
 });
 
 // GET categories
@@ -178,14 +188,17 @@ app.post("/add-budget", (req, res) => {
 
 // Register
 app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: "Missing username or password" });
+  const { username, password, name } = req.body;
+  if (!username || !password || !name) {
+    return res.status(400).json({ error: "Missing username, password, or name" });
   }
   const hashed = await bcrypt.hash(password, 10);
-  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
-  db.query(sql, [username, hashed], (err) => {
+  const sql = "INSERT INTO users (username, password, name) VALUES (?, ?, ?)";
+  db.query(sql, [username, hashed, name], (err) => {
     if (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({ error: "Username already taken" });
+      }
       console.error(err);
       return res.status(500).json({ error: "Registration failed" });
     }
@@ -207,8 +220,9 @@ app.post("/login", (req, res) => {
 
     req.session.userId = user.id;
     req.session.username = user.username;
+    req.session.name = user.name;
 
-    res.json({ message: "Login successful", userId: user.id, username: user.username });
+    res.json({ message: "Login successful", userId: user.id, username: user.username, name: user.name });
   });
 });
 

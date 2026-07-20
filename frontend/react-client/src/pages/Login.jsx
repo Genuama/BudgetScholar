@@ -22,7 +22,7 @@ export default function Login({ onLogin }) {
         setError(data.error || "Login failed");
         return;
       }
-      onLogin(data.userId, data.username);
+      onLogin(data.userId, data.username, data.name);
       navigate("/dashboard");
     } catch {
       setError("Server error. Is the backend running?");

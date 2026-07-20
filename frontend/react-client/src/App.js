@@ -14,26 +14,31 @@ import AddBudget from "./pages/AddBudget";
 function App() {
   const [userId, setUserId] = useState(() => localStorage.getItem("userId"));
   const [username, setUsername] = useState(() => localStorage.getItem("username"));
+  const [name, setName] = useState(() => localStorage.getItem("name"));
 
-  function handleLogin(id, name) {
+  function handleLogin(id, username, name) {
     setUserId(id);
-    setUsername(name);
+    setUsername(username);
+    setName(name);
     localStorage.setItem("userId", id);
-    localStorage.setItem("username", name);
+    localStorage.setItem("username", username);
+    localStorage.setItem("name", name);
   }
 
   function handleLogout() {
     setUserId(null);
     setUsername(null);
+    setName(null);
     localStorage.removeItem("userId");
     localStorage.removeItem("username");
+    localStorage.removeItem("name");
   }
 
   return (
     <BrowserRouter>
       {userId ? (
         <div className="app-layout">
-          <Navbar username={username} onLogout={handleLogout} />
+          <Navbar name={name} username={username} onLogout={handleLogout} />
           <div className="app-body">
             <Sidebar />
             <main className="main-content">

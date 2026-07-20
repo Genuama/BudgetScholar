@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -15,7 +16,7 @@ export default function Register() {
       const res = await fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, name })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -38,6 +39,14 @@ export default function Register() {
         <h1>BudgetScholar</h1>
         <p className="auth-subtitle">Create a new account</p>
         <form onSubmit={handleSubmit}>
+          <label>Name</label>
+          <input
+            type="text"
+            placeholder="Your name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+          />
           <label>Username</label>
           <input
             type="text"
