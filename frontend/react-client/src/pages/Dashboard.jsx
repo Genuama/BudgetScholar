@@ -2,27 +2,40 @@ import { useEffect, useState } from "react";
 import BalanceCard from "../components/cards/BalanceCard";
 import BudgetProgressCard from "../components/cards/BudgetProgessCard";
 
+async function fetchJson(url) {
+  const res = await fetch(url, { credentials: "include" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Request to ${url} failed`);
+  return data;
+}
+
 export default function Dashboard({ userId }) {
   const [balance, setBalance] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!userId) return;
     Promise.all([
-      fetch(`/balance/${userId}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/budget-summary/${userId}`, { credentials: "include" }).then(r => r.json()),
-      fetch(`/transactions/${userId}`, { credentials: "include" }).then(r => r.json())
+      fetchJson(`/balance/${userId}`),
+      fetchJson(`/budget-summary/${userId}`),
+      fetchJson(`/transactions/${userId}`)
     ]).then(([bal, bud, txn]) => {
       setBalance(bal);
       setBudgets(bud);
       setTransactions(txn);
       setLoading(false);
+    }).catch(err => {
+      setError(err.message || "Failed to load dashboard data");
+      setLoading(false);
     });
   }, [userId]);
 
   if (loading) return <div className="loading">✨ Loading your dashboard...</div>;
+
+  if (error) return <div className="empty-msg">⚠️ {error}</div>;
 
   const savingsRate = balance.total_income > 0
     ? Math.round(((balance.total_income - balance.total_expenses) / balance.total_income) * 100)
