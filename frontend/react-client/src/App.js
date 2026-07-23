@@ -16,7 +16,7 @@ function App() {
   const [username, setUsername] = useState(() => localStorage.getItem("username"));
   const [name, setName] = useState(() => localStorage.getItem("name"));
   const[sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   function handleLogin(id, username, name) {
     setUserId(id);
     setUsername(username);
@@ -39,9 +39,9 @@ function App() {
     <BrowserRouter>
       {userId ? (
         <div className="app-layout">
-          <Navbar name={name} username={username} onLogout={handleLogout} />
+          <Navbar name={name} username={username} onLogout={handleLogout} onMenuClick={() => setSidebarOpen(o => !o)} />
           <div className="app-body">
-            <Sidebar />
+            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
             <main className="main-content">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard userId={userId} />} />
