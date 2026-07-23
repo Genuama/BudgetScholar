@@ -15,7 +15,8 @@ function App() {
   const [userId, setUserId] = useState(() => localStorage.getItem("userId"));
   const [username, setUsername] = useState(() => localStorage.getItem("username"));
   const [name, setName] = useState(() => localStorage.getItem("name"));
-
+  const[sidebarOpen, setSidebarOpen] = useState(false);
+  
   function handleLogin(id, username, name) {
     setUserId(id);
     setUsername(username);

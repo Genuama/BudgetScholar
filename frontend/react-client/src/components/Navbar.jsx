@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-export default function Navbar({ name, username, onLogout }) {
+export default function Navbar({ name, username, onLogout, onMenuClick }) {
   const navigate = useNavigate();
   const displayName = name || username;
 
@@ -12,6 +12,7 @@ export default function Navbar({ name, username, onLogout }) {
 
   return (
     <nav className="navbar">
+      <button className="menu-toggle" onClick={onMenuClick}>☰</button>
       <div className="navbar-brand">BudgetScholar</div>
       <div className="navbar-right">
         <span className="navbar-user">Hello, {displayName} 👋</span>
