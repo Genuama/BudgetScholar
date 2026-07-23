@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 export default function Register() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -16,7 +17,7 @@ export default function Register() {
       const res = await fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, name })
+        body: JSON.stringify({ username, password, name, email })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -53,6 +54,14 @@ export default function Register() {
             placeholder="Choose a username"
             value={username}
             onChange={e => setUsername(e.target.value)}
+            required
+          />
+          <label>Email</label>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             required
           />
           <label>Password</label>

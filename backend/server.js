@@ -1,8 +1,10 @@
 require('dotenv').config();
 
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const express = require("express");
 const mysql = require("mysql2");
+const nodemailer = require("nodemailer");
 const path = require("path");
 
 const app = express();
@@ -68,6 +70,19 @@ db.connect(err => {
   }
   console.log("Connected to database");
 });
+
+// Mail transporter for password reset emails — uses Gmail SMTP with an
+// app password (EMAIL_USER / EMAIL_PASS). FRONTEND_URL is where the
+// reset link points; set it to the deployed site's URL in production.
+const mailer = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 // GET current session user
 app.get("/me", (req, res) => {
@@ -260,13 +275,13 @@ app.delete("/budgets/:id", (req, res) => {
 
 // Register
 app.post("/register", async (req, res) => {
-  const { username, password, name } = req.body;
-  if (!username || !password || !name) {
-    return res.status(400).json({ error: "Missing username, password, or name" });
+  const { username, password, name, email } = req.body;
+  if (!username || !password || !name || !email) {
+    return res.status(400).json({ error: "Missing username, password, name, or email" });
   }
   const hashed = await bcrypt.hash(password, 10);
-  const sql = "INSERT INTO users (username, password, name) VALUES (?, ?, ?)";
-  db.query(sql, [username, hashed, name], (err) => {
+  const sql = "INSERT INTO users (username, password, name, email) VALUES (?, ?, ?, ?)";
+  db.query(sql, [username, hashed, name, email], (err) => {
     if (err) {
       if (err.code === "ER_DUP_ENTRY") {
         return res.status(409).json({ error: "Username already taken" });
@@ -276,6 +291,94 @@ app.post("/register", async (req, res) => {
     }
     res.json({ message: "User registered" });
   });
+});
+
+// Forgot Password — always responds with a generic message, whether or
+// not the email is registered, so this endpoint can't be used to check
+// which emails have accounts.
+app.post("/forgot-password", (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Missing email" });
+
+  const genericResponse = { message: "If that email is registered, a reset link has been sent." };
+
+  db.query("SELECT id, username FROM users WHERE email = ?", [email], (err, rows) => {
+    if (err) {
+      console.error("Error looking up user for password reset:", err);
+      return res.status(500).json({ error: "Something went wrong" });
+    }
+    if (rows.length === 0) return res.json(genericResponse);
+
+    const user = rows[0];
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    db.query(
+      "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?",
+      [token, expires, user.id],
+      async (err) => {
+        if (err) {
+          console.error("Error saving reset token:", err);
+          return res.status(500).json({ error: "Something went wrong" });
+        }
+
+        const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
+        try {
+          await mailer.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Reset your BudgetScholar password",
+            html: `
+              <p>Hi ${user.username},</p>
+              <p>Click the link below to reset your BudgetScholar password. This link expires in 1 hour.</p>
+              <p><a href="${resetLink}">${resetLink}</a></p>
+              <p>If you didn't request this, you can safely ignore this email.</p>
+            `
+          });
+        } catch (mailErr) {
+          console.error("Error sending reset email:", mailErr);
+          // Still return the generic response — don't reveal whether the send failed.
+        }
+
+        res.json(genericResponse);
+      }
+    );
+  });
+});
+
+// Reset Password
+app.post("/reset-password", async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: "Missing token or new password" });
+  }
+
+  db.query(
+    "SELECT id FROM users WHERE reset_token = ? AND reset_token_expires > NOW()",
+    [token],
+    async (err, rows) => {
+      if (err) {
+        console.error("Error looking up reset token:", err);
+        return res.status(500).json({ error: "Something went wrong" });
+      }
+      if (rows.length === 0) {
+        return res.status(400).json({ error: "This reset link is invalid or has expired" });
+      }
+
+      const hashed = await bcrypt.hash(password, 10);
+      db.query(
+        "UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
+        [hashed, rows[0].id],
+        (err) => {
+          if (err) {
+            console.error("Error resetting password:", err);
+            return res.status(500).json({ error: "Something went wrong" });
+          }
+          res.json({ message: "Password reset successfully" });
+        }
+      );
+    }
+  );
 });
 
 // Login

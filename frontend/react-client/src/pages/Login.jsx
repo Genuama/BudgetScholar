@@ -56,6 +56,9 @@ export default function Login({ onLogin }) {
           <button type="submit">Login</button>
         </form>
         <p className="auth-link">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
+        <p className="auth-link">
           Don't have an account? <Link to="/register">Register here</Link>
         </p>
       </div>
