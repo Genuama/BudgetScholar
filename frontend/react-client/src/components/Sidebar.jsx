@@ -20,6 +20,7 @@ export default function Sidebar({open, onClose}) {
             onClick={onClose}
             className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}
           >
+            
             <span className="sidebar-icon">{icon}</span>
             {label}
           </NavLink>
