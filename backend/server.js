@@ -92,7 +92,7 @@ app.get("/categories/:type", (req, res) => {
 app.get("/transactions/:user_id", (req, res) => {
   const { user_id } = req.params;
   const sql = `
-    SELECT t.id, t.type, t.amount, t.date, c.name AS category
+    SELECT t.id, t.type, t.amount, t.date, t.category_id, c.name AS category
     FROM transactions t
     JOIN categories c ON t.category_id = c.id
     WHERE t.user_id = ?
@@ -146,6 +146,38 @@ app.post("/add-transaction", (req, res) => {
   });
 });
 
+// Update Transaction
+app.put("/transactions/:id", (req, res) => {
+  const { id } = req.params;
+  const { type, category_id, amount } = req.body;
+  if (!type || !category_id || !amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const sql = `
+    UPDATE transactions SET type = ?, category_id = ?, amount = ?
+    WHERE id = ?
+  `;
+  db.query(sql, [type, category_id, amount, id], (err) => {
+    if (err) {
+      console.error("Error updating transaction:", err);
+      return res.status(500).json({ error: "Database update failed" });
+    }
+    res.json({ message: "Transaction updated successfully!" });
+  });
+});
+
+// Delete Transaction
+app.delete("/transactions/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM transactions WHERE id = ?", [id], (err) => {
+    if (err) {
+      console.error("Error deleting transaction:", err);
+      return res.status(500).json({ error: "Database delete failed" });
+    }
+    res.json({ message: "Transaction deleted successfully!" });
+  });
+});
+
 // GET budget summary
 app.get("/budget-summary/:user_id", (req, res) => {
   const user_id = req.params.user_id;
@@ -153,6 +185,7 @@ app.get("/budget-summary/:user_id", (req, res) => {
     SELECT
       b.id AS budget_id,
       b.name AS budget_name,
+      b.category_id,
       c.name AS category,
       b.amount AS budget_amount,
       b.period,
@@ -190,6 +223,38 @@ app.post("/add-budget", (req, res) => {
       return res.status(500).json({ error: "Database insert failed" });
     }
     res.json({ message: "Budget added successfully!" });
+  });
+});
+
+// Update Budget
+app.put("/budgets/:id", (req, res) => {
+  const { id } = req.params;
+  const { category_id, amount, period, name } = req.body;
+  if (!category_id || !amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const sql = `
+    UPDATE budgets SET category_id = ?, amount = ?, period = ?, name = ?
+    WHERE id = ?
+  `;
+  db.query(sql, [category_id, amount, period || 'monthly', name || '', id], (err) => {
+    if (err) {
+      console.error("Error updating budget:", err);
+      return res.status(500).json({ error: "Database update failed" });
+    }
+    res.json({ message: "Budget updated successfully!" });
+  });
+});
+
+// Delete Budget
+app.delete("/budgets/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM budgets WHERE id = ?", [id], (err) => {
+    if (err) {
+      console.error("Error deleting budget:", err);
+      return res.status(500).json({ error: "Database delete failed" });
+    }
+    res.json({ message: "Budget deleted successfully!" });
   });
 });
 

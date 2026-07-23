@@ -505,6 +505,34 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.06);
 }
 
+.budget-card-actions {
+  margin-top: 14px;
+}
+
+.budget-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.budget-edit-fields input,
+.budget-edit-fields select {
+  padding: 9px 12px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+  width: 100%;
+}
+
+.budget-edit-fields input:focus,
+.budget-edit-fields select:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
 /* ── Charts ── */
 .chart-card {
   background: white;
@@ -677,6 +705,65 @@ tr:hover td {
 .amount-expense {
   color: #DC2626;
   font-weight: 700;
+}
+
+/* ── Row actions & inline edit ── */
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-btn {
+  padding: 6px 12px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.icon-btn:hover {
+  background: #F3F4F6;
+}
+
+.icon-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.icon-btn.danger {
+  color: #DC2626;
+  border-color: #FECACA;
+}
+
+.icon-btn.danger:hover {
+  background: #FEF2F2;
+}
+
+td select,
+td input,
+.inline-amount-input {
+  padding: 7px 10px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+}
+
+td select:focus,
+td input:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+.inline-amount-input {
+  width: 90px;
 }
 
 /* ── Form Pages ── */

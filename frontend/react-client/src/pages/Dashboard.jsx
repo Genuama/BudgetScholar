@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import BalanceCard from "../components/cards/BalanceCard";
 import BudgetProgressCard from "../components/cards/BudgetProgessCard";
 import SpendingByCategoryChart from "../components/charts/SpendingByCategoryChart";
+import TransactionRow from "../components/TransactionRow";
 
 async function fetchJson(url) {
   const res = await fetch(url, { credentials: "include" });
@@ -17,7 +18,7 @@ export default function Dashboard({ userId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     if (!userId) return;
     Promise.all([
       fetchJson(`/balance/${userId}`),
@@ -33,6 +34,10 @@ export default function Dashboard({ userId }) {
       setLoading(false);
     });
   }, [userId]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   if (loading) return <div className="loading">✨ Loading your dashboard...</div>;
 
@@ -69,7 +74,7 @@ export default function Dashboard({ userId }) {
       ) : (
         <div className="budget-grid">
           {budgets.map(b => (
-            <BudgetProgressCard key={b.budget_id} budget={b} />
+            <BudgetProgressCard key={b.budget_id} budget={b} onChanged={loadDashboard} />
           ))}
         </div>
       )}
@@ -87,20 +92,12 @@ export default function Dashboard({ userId }) {
                 <th>Category</th>
                 <th>Type</th>
                 <th>Amount</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {transactions.map(t => (
-                <tr key={t.id}>
-                  <td>{new Date(t.date).toLocaleDateString()}</td>
-                  <td>{t.category}</td>
-                  <td>
-                    <span className={`badge ${t.type}`}>{t.type}</span>
-                  </td>
-                  <td className={t.type === "income" ? "amount-income" : "amount-expense"}>
-                    {t.type === "income" ? "+" : "-"}${Number(t.amount).toFixed(2)}
-                  </td>
-                </tr>
+                <TransactionRow key={t.id} transaction={t} onChanged={loadDashboard} />
               ))}
             </tbody>
           </table>
